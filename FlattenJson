@@ -1,0 +1,80 @@
+# -*- coding: utf-8 -*-
+"""
+@Author  :   zbj
+"""
+
+import json
+import pandas as pd
+
+
+class FlattenJson:
+    '''
+    dfsJson：深度遍历json，得到h-v字典
+    reduce：删除非叶子节点
+    json2pd：将打平的表保存为dataframe
+    concatJson：将所有dataframe竖向拼接
+    参数：
+    data：输入的dataframe
+    dataColumn：要打平并拼接的列
+    '''
+
+    def dfsJson(self, item, headItem, heads, values):
+        if type(item) == type({}):
+            for k in item.keys():
+                try:
+                    json_item = json.loads(item[k])
+                except :
+                    self.dfsJson(item[k], headItem + [k], heads, values)
+                else:
+                    self.dfsJson(json_item, headItem + [k], heads, values)
+        elif type(item) == type([]):
+            flag = False
+            for i in range(len(item)):
+                a = type(item[i])
+                b = type([])
+                c = type({})
+                if (a == b )or (a == c):
+                    flag = True
+            if flag is True:
+                for i in range(len(item)):
+                    self.dfsJson(item[i], headItem + [str(i)], heads, values)
+            else:
+                if not item:
+                    headItemStr = '_'.join(headItem)
+                    heads.append(headItemStr)
+                    values.append('empty')
+                else:
+                    headItemStr = '_'.join(headItem)
+                    heads.append(headItemStr)
+                    values.append('nonempty')
+        else:
+            headItemStr = '_'.join(headItem)
+            heads.append(headItemStr)
+            values.append(str(item))
+
+        return
+
+    def reduce(self, jsonItem):
+        heads, values = [], []
+        self.dfsJson(jsonItem, [], heads, values)
+        return heads, values
+
+    def json2pd(self, jsonstr):
+        jsonItem = json.loads(jsonstr)
+        head, value = self.reduce(jsonItem)
+        dictHeadValue = {head[i]: value[i] for i in range(len(head))}
+        paramsPd = pd.DataFrame(dictHeadValue, index=[0])
+        return paramsPd
+
+    def concatJson(self, data, dataColumn):
+        paramsList = []
+        trainParams = data[dataColumn]
+        for num in range(len(data)):
+            if trainParams[num]:
+                paramsList.append(self.json2pd(trainParams[num]))
+                if num % 1000 == 0:
+                    print(num)
+            else:
+                dicNan = {dataColumn+'_nan': 'nan'}
+                paramsList.append(dicNan)
+        return pd.concat(paramsList, axis=0, sort=False)
